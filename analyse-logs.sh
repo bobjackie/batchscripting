@@ -1,32 +1,37 @@
 #!/bin/bash
 
 LOG_DIR="/workspaces/batchscripting/logs"
-APP_LOG_FILE="application.log"
-SYS_LOG_FILE="system.log"
+ERROR_PATTERNS=("ERROR" "FATAL" "CRITICAL" )
+REPORT_FILE="/workspaces/batchscripting/logs/log_analysis_report.txt"
 
-ERROR_PATTERNS={"ERROR" "FATAL" "CRITICAL"}
+echo "analysing log files" > "$REPORT_FILE"
+echo "===================" >> "$REPORT_FILE"
 
-echo "analysing log files"
-echo "===================="
+echo -e "\nList of log files updated in last 24 hours" >> "$REPORT_FILE"
+LOG_FILES=$(find $LOG_DIR -name "*.log" )
+echo "$LOG_FILES" >> "$REPORT_FILE"
 
-echo -e "\nList of log files updated in last 24 hours"
-LOG_FILES=$(find $LOG_DIR -name "*.log" -mtime -1)
-echo "$LOG_FILES"
+for LOG_FILE in $LOG_FILES; do 
 
-echo -e "\nSearching ERROR logs in application.log file"
-grep "${ERROR_PATTERNS[0]}" "$LOG_DIR/$APP_LOG_FILE"
+    echo -e "/n" >> "$REPORT_FILE"
+    echo "=================================================" >> "$REPORT_FILE"
+    echo "================$LOG_FILE================" >> "$REPORT_FILE"
+    echo "=================================================" >> "$REPORT_FILE"
 
-echo -e "\nNumber of ERROR logs found in application.log"
-grep -c "${ERROR_PATTERNS[0]}" "$LOG_DIR/$APP_LOG_FILE"
+    for PATTERN in ${ERROR_PATTERNS[@]}; do 
 
-echo -e "\nNumber of FATAL logs found in application.log"
-grep -c "${ERROR_PATTERNS[1]}" "$LOG_DIR/$APP_LOG_FILE"
+        echo -e "\nSearching $PATTERN logs in $LOG_FILE file" >> "$REPORT_FILE"
+        grep "$PATTERN" "$LOG_FILE" >> "$REPORT_FILE"
 
-echo -e "\nNumber of FATAL logs found in system.log"
-grep -c "${ERROR_PATTERNS[1]}" "$LOG_DIR/$SYS_LOG_FILE"
+        echo -e "\nNumber of $PATTERN logs found in $LOG_FILE" >> "$REPORT_FILE"\
 
-echo -e "\nNumber of CRITICAL logs found in system.log"
-grep -c "${ERROR_PATTERNS[2]}" "$LOG_DIR/$SYS_LOG_FILE"
+        ERROR_COUNT=$(grep -c "$PATTERN" "$LOG_FILE")
+        echo $ERROR_COUNT >> "$REPORT_FILE"
 
-echo -e "\nCRITICAL logs in system.log file"
-grep "${ERROR_PATTERNS[2]}" "$LOG_DIR/$SYS_LOG_FILE"
+        if [ "$ERROR_COUNT" -gt 20 ]; then 
+            echo -e "\n ACTION REQUIERED: too many $PATTERN errors in log file $LOG_FILE "
+        fi
+    done
+done 
+
+echo -e "\nLog analysis completed and report saved in: $REPORT_FILE"
